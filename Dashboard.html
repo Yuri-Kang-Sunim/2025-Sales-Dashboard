@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수출 매출 대시보드</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .refresh-btn, .config-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover, .config-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .control-group input {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status-connected {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .status-disconnected {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .kpi-title {
+            color: #4a5568;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .kpi-change {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .kpi-change.positive { color: #38a169; }
+        .kpi-change.negative { color: #e53e3e; }
+        .kpi-change.neutral { color: #718096; }
+
+        .main-charts {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            color: #2d3748;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .secondary-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .heatmap-container {
+            padding: 20px 0;
+        }
+
+        .heatmap {
+            display: grid;
+            grid-template-columns: 100px repeat(12, 1fr);
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            min-height: 40px;
+        }
+
+        .heatmap-header {
+            background: #4a5568;
+            color: white;
+            font-weight: bold;
+        }
+
+        .heatmap-region {
+            background: #2d3748;
+            color: white;
+            font-weight: bold;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        .heat-excellent { background: #38a169; }
+        .heat-good { background: #68d391; }
+        .heat-average { background: #ffc000; }
+        .heat-poor { background: #f56565; }
+        .heat-bad { background: #e53e3e; }
+
+        .waterfall-container {
+            padding: 20px;
+            height: 300px;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .waterfall-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .waterfall-bar {
+            width: 60px;
+            border-radius: 6px 6px 0 0;
+            min-height: 20px;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 4px;
+        }
+
+        .waterfall-positive { background: #38a169; }
+        .waterfall-negative { background: #e53e3e; }
+        .waterfall-total { background: #4a5568; }
+
+        .waterfall-label {
+            font-size: 11px;
+            text-align: center;
+            color: #4a5568;
+            font-weight: 600;
+            max-width: 80px;
+        }
+
+        .data-table {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th, .table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .table th {
+            background: #f7fafc;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+        }
+
+        .table td {
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-completed { background: #c6f6d5; color: #276749; }
+        .status-ongoing { background: #fed7d7; color: #c53030; }
+        .status-pending { background: #fef5e7; color: #d69e2e; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-charts {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .heatmap {
+                grid-template-columns: 80px repeat(6, 1fr);
+            }
+
+            .waterfall-container {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <div>
+                <h1>🚢 수출 매출 대시보드</h1>
+                <p style="color: #718096; margin-top: 5px;">실시간 Google Apps Script 연동</p>
+            </div>
+            <div class="header-controls">
+                <button class="config-btn" onclick="openConfig()">⚙️ 설정</button>
+                <button class="refresh-btn" onclick="refreshData()">🔄 새로고침</button>
+            </div>
+        </div>
+
+        <!-- 컨트롤 패널 -->
+        <div class="controls">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>Apps Script URL</label>
+                    <input type="text" id="appsScriptUrl" placeholder="Apps Script 웹앱 URL을 입력하세요">
+                </div>
+                <div class="control-group">
+                    <label>스프레드시트 ID</label>
+                    <input type="text" id="spreadsheetId" placeholder="Google Sheets ID를 입력하세요">
+                </div>
+                <div class="control-group">
+                    <label>마지막 업데이트</label>
+                    <div id="lastUpdated" style="padding: 10px; background: #f7fafc; border-radius: 8px; color: #4a5568;">
+                        데이터를 불러오세요
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>연결 상태</label>
+                    <div id="connectionStatus" class="status-indicator status-disconnected">
+                        ⚪ 연결 안됨
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 카드 섹션 -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">매출목표 달성률</span>
+                    <div class="kpi-icon">🎯</div>
+                </div>
+                <div class="kpi-value" id="targetAchievement">--%</div>
+                <div class="kpi-change neutral" id="targetChange">
+                    → 데이터 로딩중
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">전년 대비 성장률</span>
+                    <div class="kpi-icon">📈</div>
+                </div>
+                <div class="kpi-value" id="yoyGrowth">--%</div>
+                <div class="kpi-change neutral" id="yoyChange">
+                    → 데이터 로딩중
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">분기 누적 달성률</span>
+                    <div class="kpi-icon">📊</div>
+                </div>
+                <div class="kpi-value" id="quarterlyAchievement">--%</div>
+                <div class="kpi-change neutral" id="quarterlyChange">
+                    → 데이터 로딩중
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">총 매출액</span>
+                    <div class="kpi-icon">💰</div>
+                </div>
+                <div class="kpi-value" id="totalSales">$--</div>
+                <div class="kpi-change neutral" id="salesChange">
+                    → 데이터 로딩중
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인 차트 섹션 -->
+        <div class="main-charts">
+            <div class="chart-container">
+                <h3 class="chart-title">월별 매출 실적 vs 목표</h3>
+                <canvas id="monthlyChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">지역별 매출 기여도</h3>
+                <canvas id="regionPieChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- 보조 차트 섹션 -->
+        <div class="secondary-charts">
+            <div class="chart-container">
+                <h3 class="chart-title">월별 매출 증감률 추세</h3>
+                <canvas id="growthTrendChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">분기별 누적 달성률</h3>
+                <canvas id="quarterlyChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">지역별 성과 히트맵</h3>
+                <div class="heatmap-container">
+                    <div id="regionHeatmap" class="heatmap">
+                        <!-- 히트맵이 여기에 동적으로 생성됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">지역별 전년 대비 증감 분석</h3>
+                <div id="waterfallChart" class="waterfall-container">
+                    <!-- 워터폴 차트가 여기에 동적으로 생성됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 진행중인 오더 테이블 -->
+        <div class="data-table">
+            <h3 class="chart-title">현재 진행중인 오더 내역</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>PI No.</th>
+                            <th>지역</th>
+                            <th>수입국</th>
+                            <th>Buyer</th>
+                            <th>PI 금액</th>
+                            <th>수금률</th>
+                            <th>ETD</th>
+                            <th>ETA</th>
+                            <th>담당자</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ongoingOrdersTable">
+                        <tr>
+                            <td colspan="9" class="loading">데이터를 불러오는 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TOP10 바이어 테이블 -->
+        <div class="data-table">
+            <h3 class="chart-title">BUYER 매출 TOP 10</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>순위</th>
+                            <th>Buyer</th>
+                            <th>국가</th>
+                            <th>총 매출액</th>
+                            <th>거래 건수</th>
+                            <th>평균 거래액</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topBuyersTable">
+                        <tr>
+                            <td colspan="6" class="loading">데이터를 불러오는 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 글로벌 변수
+        let dashboardData = null;
+        let charts = {};
+        let appsScriptUrl = '';
+
+        // 초기 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+            if (appsScriptUrl) {
+                refreshData();
+            }
+        });
+
+        // 설정 로드
+        function loadSettings() {
+            appsScriptUrl = localStorage.getItem('appsScriptUrl') || '';
+            const spreadsheetId = localStorage.getItem('spreadsheetId') || '';
+            
+            document.getElementById('appsScriptUrl').value = appsScriptUrl;
+            document.getElementById('spreadsheetId').value = spreadsheetId;
+        }
+
+        // 설정 저장
+        function saveSettings() {
+            appsScriptUrl = document.getElementById('appsScriptUrl').value;
+            const spreadsheetId = document.getElementById('spreadsheetId').value;
+            
+            localStorage.setItem('appsScriptUrl', appsScriptUrl);
+            localStorage.setItem('spreadsheetId', spreadsheetId);
+        }
+
+        // 설정 창 열기
+        function openConfig() {
+            const url = prompt('Apps Script 웹앱 URL을 입력하세요:', appsScriptUrl);
+            if (url && url !== appsScriptUrl) {
+                document.getElementById('appsScriptUrl').value = url;
+                appsScriptUrl = url;
+                saveSettings();
+                refreshData();
+            }
+        }
+
+        // 데이터 새로고침
+        async function refreshData() {
+            if (!appsScriptUrl) {
+                alert('Apps Script URL을 먼저 설정해주세요.');
+                return;
+            }
+
+            saveSettings();
+            
+            try {
+                updateConnectionStatus('connecting');
+                document.querySelector('.refresh-btn').innerHTML = '⏳ 로딩중...';
+                
+                const response = await fetch(`${appsScriptUrl}?action=getDashboardData`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                dashboardData = await response.json();
+                
+                if (dashboardData.error) {
+                    throw new Error(dashboardData.error);
+                }
+                
+                updateDashboard();
+                updateConnectionStatus('connected');
+                document.querySelector('.refresh-btn').innerHTML = '🔄 새로고침';
+                
+            } catch (error) {
+                console.error('데이터 새로고침 실패:', error);
+                updateConnectionStatus('error');
+                document.querySelector('.refresh-btn').innerHTML = '❌ 실패';
+                alert(`데이터 로드 실패: ${error.message}`);
+            }
+        }
+
+        // 연결 상태 업데이트
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            switch(status) {
+                case 'connected':
+                    statusElement.className = 'status-indicator status-connected';
+                    statusElement.innerHTML = '🟢 연결됨';
+                    break;
+                case 'connecting':
+                    statusElement.className = 'status-indicator status-disconnected';
+                    statusElement.innerHTML = '🟡 연결중...';
+                    break;
+                case 'error':
+                default:
+                    statusElement.className = 'status-indicator status-disconnected';
+                    statusElement.innerHTML = '🔴 연결 실패';
+                    break;
+            }
+        }
+
+        // 대시보드 업데이트
+        function updateDashboard() {
+            if (!dashboardData) return;
+            
+            updateKPIs();
+            updateLastUpdated();
+            createAllCharts();
+            updateOngoingOrdersTable();
+            updateTopBuyersTable();
+        }
+
+        // KPI 업데이트
+        function updateKPIs() {
+            const kpis = dashboardData.kpis;
+            
+            document.getElementById('targetAchievement').textContent = 
+                `${kpis.targetAchievementRate.toFixed(1)}%`;
+            document.getElementById('yoyGrowth').textContent = 
+                `${kpis.yoyGrowthRate >= 0 ? '+' : ''}${kpis.yoyGrowthRate.toFixed(1)}%`;
+            document.getElementById('totalSales').textContent = 
+                `$${kpis.totalSales.toLocaleString()}`;
+            
+            // 분기 달성률 계산 (현재 분기)
+            const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+            const quarterKey = `Q${currentQuarter}`;
+            const quarterlyRate = dashboardData.quarterlyData[quarterKey]?.achievement || 0;
+            document.getElementById('quarterlyAchievement').textContent = 
+                `${quarterlyRate.toFixed(1)}%`;
+            
+            // 변화량 표시 업데이트
+            updateKPIChanges(kpis);
+        }
+
+        function updateKPIChanges(kpis) {
+            const targetChange = document.getElementById('targetChange');
+            targetChange.innerHTML = `$${kpis.remainingTarget.toLocaleString()} 남음`;
+            targetChange.className = kpis.targetAchievementRate >= 100 ? 'kpi-change positive' : 'kpi-change neutral';
+            
+            const yoyChange = document.getElementById('yoyChange');
+            yoyChange.innerHTML = kpis.yoyGrowthRate >= 0 ? '↗ 성장' : '↘ 감소';
+            yoyChange.className = kpis.yoyGrowthRate >= 0 ? 'kpi-change positive' : 'kpi-change negative';
+        }
+
+        // 마지막 업데이트 시간
+        function updateLastUpdated() {
+            const lastUpdated = new Date(dashboardData.lastUpdated);
+            document.getElementById('lastUpdated').textContent = 
+                lastUpdated.toLocaleString('ko-KR');
+        }
+
+        // 모든 차트 생성
+        function createAllCharts() {
+            createMonthlyChart();
+            createRegionPieChart();
+            createGrowthTrendChart();
+            createQuarterlyChart();
+            createRegionHeatmap();
+            createWaterfallChart();
+        }
+
+        // 월별 실적 vs 목표 차트
+        function createMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            const monthlyData = dashboardData.monthlyData;
+            
+            const months = Object.keys(monthlyData).map(m => `${m}월`);
+            const actual = Object.values(monthlyData).map(d => d.actual);
+            const target = Object.values(monthlyData).map(d => d.target);
+            
+            if (charts.monthly) charts.monthly.destroy();
+            
+            charts.monthly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: '실적',
+                            data: actual,
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderColor: '#667eea',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '목표',
+                            data: target,
+                            type: 'line',
+                            borderColor: '#e53e3e',
+                            backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 지역별 기여도 파이 차트
+        function createRegionPieChart() {
+            const ctx = document.getElementById('regionPieChart').getContext('2d');
+            const regionData = dashboardData.regionData;
+            
+            const labels = Object.keys(regionData);
+            const data = Object.values(regionData).map(d => d.actual);
+            const colors = [
+                '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe',
+                '#43e97b', '#38f9d7', '#ffecd2', '#fcb69f', '#a8edea'
+            ];
+            
+            if (charts.regionPie) charts.regionPie.destroy();
+            
+            charts.regionPie = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                                    const percentage = ((context.raw / total) * 100).toFixed(1);
+                                    return `${context.label}: $${context.raw.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 월별 증감률 추세 차트
+        function createGrowthTrendChart() {
+            const ctx = document.getElementById('growthTrendChart').getContext('2d');
+            const monthlyData = dashboardData.monthlyData;
+            
+            const months = Object.keys(monthlyData);
+            const growthRates = months.map((month, index) => {
+                if (index === 0) return 0;
+                const current = monthlyData[month].actual;
+                const previous = monthlyData[months[index - 1]].actual;
+                return previous > 0 ? ((current - previous) / previous) * 100 : 0;
+            });
+            
+            if (charts.growthTrend) charts.growthTrend.destroy();
+            
+            charts.growthTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months.map(m => `${m}월`),
+                    datasets: [{
+                        label: '전월 대비 증감률 (%)',
+                        data: growthRates,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `증감률: ${context.raw.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 분기별 누적 달성률 차트
+        function createQuarterlyChart() {
+            const ctx = document.getElementById('quarterlyChart').getContext('2d');
+            const quarterlyData = dashboardData.quarterlyData;
+            
+            const quarters = Object.keys(quarterlyData);
+            const achievements = Object.values(quarterlyData).map(d => d.achievement);
+            
+            if (charts.quarterly) charts.quarterly.destroy();
+            
+            charts.quarterly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: quarters,
+                    datasets: [{
+                        label: '달성률 (%)',
+                        data: achievements,
+                        backgroundColor: achievements.map(rate => 
+                            rate >= 100 ? '#38a169' : 
+                            rate >= 80 ? '#ffc000' : '#e53e3e'
+                        ),
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 120,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `달성률: ${context.raw.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 지역별 성과 히트맵
+        function createRegionHeatmap() {
+            const container = document.getElementById('regionHeatmap');
+            const regionData = dashboardData.regionData;
+            const monthlyData = dashboardData.monthlyData;
+            
+            container.innerHTML = '';
+            
+            // 헤더 행
+            container.appendChild(createHeatmapCell('지역', 'heatmap-header'));
+            for (let month = 1; month <= 12; month++) {
+                container.appendChild(createHeatmapCell(`${month}월`, 'heatmap-header'));
+            }
+            
+            // 지역별 데이터 행
+            Object.keys(regionData).forEach(region => {
+                container.appendChild(createHeatmapCell(region, 'heatmap-region'));
+                
+                for (let month = 1; month <= 12; month++) {
+                    // 임시 성과 데이터 (실제로는 월별 지역 성과 계산 필요)
+                    const performance = Math.random() * 120; // 임시 데이터
+                    const heatClass = getHeatmapClass(performance);
+                    const cell = createHeatmapCell(`${performance.toFixed(0)}%`, heatClass);
+                    container.appendChild(cell);
+                }
+            });
+        }
+
+        function createHeatmapCell(text, className) {
+            const cell = document.createElement('div');
+            cell.className = `heatmap-cell ${className}`;
+            cell.textContent = text;
+            return cell;
+        }
+
+        function getHeatmapClass(performance) {
+            if (performance >= 110) return 'heat-excellent';
+            if (performance >= 90) return 'heat-good';
+            if (performance >= 70) return 'heat-average';
+            if (performance >= 50) return 'heat-poor';
+            return 'heat-bad';
+        }
+
+        // 워터폴 차트
+        function createWaterfallChart() {
+            const container = document.getElementById('waterfallChart');
+            const regionData = dashboardData.regionData;
+            
+            container.innerHTML = '';
+            
+            // 작년 총액 (시작점)
+            const lastYearTotal = Object.values(regionData).reduce((sum, d) => sum + d.lastYear, 0);
+            container.appendChild(createWaterfallItem('작년', lastYearTotal, 'total', lastYearTotal));
+            
+            let runningTotal = lastYearTotal;
+            
+            // 지역별 증감
+            Object.entries(regionData).forEach(([region, data]) => {
+                const change = data.actual - data.lastYear;
+                runningTotal += change;
+                const type = change >= 0 ? 'positive' : 'negative';
+                container.appendChild(createWaterfallItem(region, Math.abs(change), type, change));
+            });
+            
+            // 올해 총액 (종료점)
+            const thisYearTotal = Object.values(regionData).reduce((sum, d) => sum + d.actual, 0);
+            container.appendChild(createWaterfallItem('올해', thisYearTotal, 'total', thisYearTotal));
+        }
+
+        function createWaterfallItem(label, value, type, actualChange) {
+            const item = document.createElement('div');
+            item.className = 'waterfall-item';
+            
+            const height = Math.max(20, (value / 100000) * 200); // 값에 따른 높이 조정
+            
+            const bar = document.createElement('div');
+            bar.className = `waterfall-bar waterfall-${type}`;
+            bar.style.height = `${height}px`;
+            bar.textContent = type === 'total' ? '' : (actualChange >= 0 ? '+' : '') + Math.round(actualChange / 1000) + 'K';
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'waterfall-label';
+            labelDiv.textContent = label;
+            
+            item.appendChild(bar);
+            item.appendChild(labelDiv);
+            
+            return item;
+        }
+
+        // 진행중인 오더 테이블 업데이트
+        function updateOngoingOrdersTable() {
+            const tbody = document.getElementById('ongoingOrdersTable');
+            const orders = dashboardData.ongoingOrders || [];
+            
+            tbody.innerHTML = '';
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="loading">진행중인 오더가 없습니다.</td></tr>';
+                return;
+            }
+            
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${order.pi || '-'}</td>
+                    <td>${order.region || '-'}</td>
+                    <td>${order.country || '-'}</td>
+                    <td>${order.buyer || '-'}</td>
+                    <td>$${(order.piAmount || 0).toLocaleString()}</td>
+                    <td>${(order.collectionRate || 0)}%</td>
+                    <td>${order.etd || '-'}</td>
+                    <td>${order.eta || '-'}</td>
+                    <td>${order.pic || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // TOP10 바이어 테이블 업데이트
+        function updateTopBuyersTable() {
+            const tbody = document.getElementById('topBuyersTable');
+            const buyers = dashboardData.topBuyers || [];
+            
+            tbody.innerHTML = '';
+            
+            if (buyers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">데이터가 없습니다.</td></tr>';
+                return;
+            }
+            
+            buyers.forEach((buyer, index) => {
+                const row = document.createElement('tr');
+                const avgAmount = buyer.orderCount > 0 ? buyer.totalAmount / buyer.orderCount : 0;
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${buyer.buyer}</td>
+                    <td>${buyer.country || '-'}</td>
+                    <td>$${buyer.totalAmount.toLocaleString()}</td>
+                    <td>${buyer.orderCount}</td>
+                    <td>$${avgAmount.toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>
